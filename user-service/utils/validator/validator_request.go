@@ -2,7 +2,8 @@ package validator
 
 import (
 	"errors"
-	"log"
+
+	"github.com/labstack/gommon/log"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -45,4 +46,5 @@ func (v *Validator) Validate(i interface{}) error {
 		}
 	}
 
+	return nil
 }
