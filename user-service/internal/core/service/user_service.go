@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
+	"user-service/config"
 	"user-service/internal/adapter/repository"
 	"user-service/internal/core/domain/entity"
 	"user-service/utils/conv"
@@ -15,7 +17,9 @@ type UserServiceInterface interface {
 }
 
 type UserService struct {
-	repo repository.UserRepositoryInterface
+	repo       repository.UserRepositoryInterface
+	cfg        *config.Config
+	jwtService JwtServiceInterface
 }
 
 func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entity.UserEntity, string, error) {
@@ -33,10 +37,36 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 		return nil, "", err
 	}
 
-	return user, "", nil
+	token, err := u.jwtService.GenerateToken(user.ID)
+	if err != nil {
+		log.Errorf("[UserService-1] SignIn: %v", err)
+		return nil, "", err
+	}
+
+	sessionData := map[string]interface{}{
+		"user_id":    user.ID,
+		"name":       user.Name,
+		"email":      user.Email,
+		"logged_in":  true,
+		"created_at": time.Now().String(),
+		"token":      token,
+	}
+
+	redisConn := config.NewConfig().NewRedisClient()
+	err = redisConn.HSet(ctx, user.Email, sessionData).Err()
+	if err != nil {
+		log.Errorf("[UserService-4] SignIn: %v", err)
+		return nil, "", err
+	}
+
+	return user, token, nil
 
 }
 
-func NewUserService(repo repository.UserRepositoryInterface) UserServiceInterface {
-	return &UserService{repo: repo}
+func NewUserService(repo repository.UserRepositoryInterface, cfg *config.Config, jwtService JwtServiceInterface) UserServiceInterface {
+	return &UserService{
+		repo:       repo,
+		cfg:        cfg,
+		jwtService: jwtService,
+	}
 }

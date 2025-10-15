@@ -9,7 +9,19 @@ require (
 	gorm.io/gorm v1.31.0
 )
 
-require github.com/inconshreveable/mousetrap v1.1.0 // indirect
+require (
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/gorilla/context v1.1.2 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
+	github.com/gorilla/sessions v1.4.0 // indirect
+	github.com/labstack/echo-contrib v0.17.4 // indirect
+)
+
+require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+)
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -17,6 +29,7 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.28.0
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

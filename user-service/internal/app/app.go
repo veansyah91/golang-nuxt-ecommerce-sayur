@@ -29,7 +29,8 @@ func RunServer() {
 
 	userRepo := repository.NewUserRepository(db.DB)
 
-	userService := service.NewUserService(userRepo)
+	jwtService := service.NewJwtService(cfg)
+	userService := service.NewUserService(userRepo, cfg, jwtService)
 
 	e := echo.New()
 	e.Use(middleware.CORS())
@@ -42,7 +43,7 @@ func RunServer() {
 		return c.String(200, "OK")
 	})
 
-	handler.NewUserHandler(e, userService)
+	handler.NewUserHandler(e, userService, cfg)
 
 	go func() {
 		if cfg.App.AppPort == "" {
