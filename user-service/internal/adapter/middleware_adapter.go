@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"user-service/config"
+	"user-service/internal/adapter/handler/response"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
@@ -21,32 +22,28 @@ type MiddlewareAdapter struct {
 func (m *MiddlewareAdapter) CheckToken() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			respErr := response.DefaultReponse{}
 			redisConn := config.NewConfig().NewRedisClient()
 
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
 				log.Errorf("[MiddlewareAdapter-1] CheckToken: %s", "missing or invalid token")
-				return echo.NewHTTPError(http.StatusUnauthorized, "missing or invalid token")
+				respErr.Message = "missing or invalid token"
+				respErr.Data = nil
+				return c.JSON(http.StatusUnauthorized, respErr)
 			}
 
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
 			getSession, err := redisConn.HGetAll(c.Request().Context(), tokenString).Result()
 			if err != nil || len(getSession) == 0 {
-				msg := "session not found or invalid token"
+				log.Errorf("[MiddlewareAdapter-2] CheckToken: %s", err.Error())
+				respErr.Message = err.Error()
+				respErr.Data = nil
 
-				if err != nil {
-					msg = err.Error()
-					log.Errorf("[MiddlewareAdapter-3] CheckToken error: %s", msg)
-				} else {
-					log.Warnf("[MiddlewareAdapter-3] CheckToken warning: %s", msg)
-				}
-
-				return echo.NewHTTPError(http.StatusUnauthorized, "missing or invalid token")
+				return c.JSON(http.StatusUnauthorized, respErr)
 			}
 
 			c.Set("user", getSession)
-
 			return next(c)
 		}
 	}

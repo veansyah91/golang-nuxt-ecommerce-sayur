@@ -37,8 +37,8 @@ func NewConfig() *Config {
 			AppPort: viper.GetString("APP_PORT"),
 			AppEnv:  viper.GetString("APP_ENV"),
 
-			JwtSecretKey: viper.GetString("JWR_SECRET_KEY"),
-			JwtIssuer:    viper.GetString("JWR_ISSUER"),
+			JwtSecretKey: viper.GetString("JWT_SECRET_KEY"),
+			JwtIssuer:    viper.GetString("JWT_ISSUER"),
 		},
 		Psql: PsqlDB{
 			Host:      viper.GetString("DATABASE_HOST"),
