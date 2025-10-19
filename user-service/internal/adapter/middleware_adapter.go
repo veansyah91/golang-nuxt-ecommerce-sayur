@@ -23,7 +23,7 @@ func (m *MiddlewareAdapter) CheckToken() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			respErr := response.DefaultReponse{}
-			redisConn := config.NewConfig().NewRedisClient()
+			redisConn := config.NewRedisClient()
 
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
@@ -35,11 +35,19 @@ func (m *MiddlewareAdapter) CheckToken() echo.MiddlewareFunc {
 
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 			getSession, err := redisConn.HGetAll(c.Request().Context(), tokenString).Result()
-			if err != nil || len(getSession) == 0 {
-				log.Errorf("[MiddlewareAdapter-2] CheckToken: %s", err.Error())
-				respErr.Message = err.Error()
-				respErr.Data = nil
 
+			if err != nil {
+				log.Errorf("[MiddlewareAdapter-2] Redis error: %v", err)
+				respErr.Message = "failed to verify session"
+				respErr.Data = nil
+				return c.JSON(http.StatusUnauthorized, respErr)
+			}
+
+			if len(getSession) == 0 {
+				log.Info(getSession)
+				log.Warnf("[MiddlewareAdapter-3] session not found or invalid token")
+				respErr.Message = "session not found or invalid token"
+				respErr.Data = nil
 				return c.JSON(http.StatusUnauthorized, respErr)
 			}
 

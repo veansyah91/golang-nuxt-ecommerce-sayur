@@ -8,7 +8,7 @@ import (
 
 var Ctx = context.Background()
 
-func (cfg Config) NewRedisClient() *redis.Client {
+func NewRedisClient() *redis.Client {
 	// connect := fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port)
 	client := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
