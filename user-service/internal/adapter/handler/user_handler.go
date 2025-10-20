@@ -15,11 +15,62 @@ import (
 )
 
 type UserHandlerInterface interface {
-	SignIn(ctx echo.Context) error
+	SignIn(c echo.Context) error
+	CreateUserAccount(c echo.Context) error
 }
 
 type UserHandler struct {
 	UserService service.UserServiceInterface
+}
+
+// CreateUserAccount implements UserHandlerInterface.
+func (u *UserHandler) CreateUserAccount(c echo.Context) error {
+	var (
+		req  = request.SignUpRequest{}
+		resp = response.DefaultReponse{}
+		ctx  = c.Request().Context()
+	)
+
+	if err = c.Bind(&req); err != nil {
+		log.Errorf("[UserHandler-1] CreateUserAccount: %v", err)
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[UserHandler-2] CreateUserAccount: %v", err)
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	if req.Password != req.PasswordConfirmation {
+		log.Errorf("[UserHandler-3] CreateUserAccount: %v", err)
+		resp.Message = "Password not Match"
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	reqEntity := entity.UserEntity{
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password,
+	}
+
+	err = u.UserService.CreateUserAccount(ctx, reqEntity)
+
+	if err != nil {
+		log.Errorf("[UserHandler-4] CreateUserAccount: %v", err)
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	resp.Message = "Success"
+	resp.Data = nil
+
+	return c.JSON(http.StatusCreated, resp)
 }
 
 var err error
@@ -89,6 +140,7 @@ func NewUserHandler(e *echo.Echo, UserService service.UserServiceInterface, cfg 
 	e.Use(middleware.Recover())
 
 	e.POST("/signin", userHandler.SignIn)
+	e.POST("/signup", userHandler.CreateUserAccount)
 
 	mid := adapter.NewMiddlewareAdapter(cfg)
 	adminGroup := e.Group("/admin", mid.CheckToken())
