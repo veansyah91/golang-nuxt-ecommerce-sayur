@@ -14,13 +14,117 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
+var err error
+
 type UserHandlerInterface interface {
 	SignIn(c echo.Context) error
 	CreateUserAccount(c echo.Context) error
+	ForgotPassword(c echo.Context) error
+	VerifyAccount(c echo.Context) error
 }
 
 type UserHandler struct {
 	UserService service.UserServiceInterface
+}
+
+// VerifyAccount implements UserHandlerInterface.
+func (u *UserHandler) VerifyAccount(c echo.Context) error {
+	var (
+		resp       = response.DefaultReponse{}
+		respSignIn = response.SignInResponse{}
+		ctx        = c.Request().Context()
+	)
+
+	tokenString := c.QueryParam("token")
+
+	if tokenString == "" {
+		resp.Message = "missing or invalid token"
+		log.Infof("[UserHandler-1] VerifyAccount: %s", resp.Message)
+		resp.Data = nil
+		return c.JSON(http.StatusUnauthorized, resp)
+	}
+
+	user, err := u.UserService.VerifyToken(ctx, tokenString)
+	if err != nil {
+		log.Errorf("[UserHandler-2] VerifyAccount: %v", err)
+
+		if err.Error() == "404" {
+			resp.Message = "User not found"
+			resp.Data = nil
+			return c.JSON(http.StatusNotFound, resp)
+		}
+
+		if err.Error() == "404" {
+			resp.Message = "Token expired or invalid"
+			resp.Data = nil
+			return c.JSON(http.StatusUnauthorized, resp)
+		}
+
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusInternalServerError, resp)
+	}
+
+	respSignIn.ID = user.ID
+	respSignIn.Name = user.Name
+	respSignIn.Email = user.Email
+	respSignIn.Role = user.RoleName
+	respSignIn.Lat = user.Lat
+	respSignIn.Lng = user.Lng
+	respSignIn.Phone = user.Phone
+	respSignIn.AccessToken = user.Token
+
+	resp.Message = "Success"
+	resp.Data = respSignIn
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+// ForgotPassword implements UserHandlerInterface.
+func (u *UserHandler) ForgotPassword(c echo.Context) error {
+	var (
+		req  = request.ForgotPasswordRequest{}
+		resp = response.DefaultReponse{}
+		ctx  = c.Request().Context()
+	)
+
+	if err = c.Bind(&req); err != nil {
+		log.Errorf("[UserHandler-1] ForgotPassword: %v", err)
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	if err = c.Validate(req); err != nil {
+		log.Errorf("[UserHandler-2] ForgotPassword: %v", err)
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	reqEntity := entity.UserEntity{
+		Email: req.Email,
+	}
+
+	err = u.UserService.ForgotPassword(ctx, reqEntity)
+
+	if err != nil {
+		log.Errorf("[UserHandler-3] ForgotPassword: %v", err)
+		if err.Error() == "404" {
+			resp.Message = "User not found"
+			resp.Data = nil
+			return c.JSON(http.StatusInternalServerError, resp)
+		}
+
+		resp.Message = err.Error()
+		resp.Data = nil
+		return c.JSON(http.StatusUnprocessableEntity, resp)
+	}
+
+	resp.Message = "Success"
+	resp.Data = nil
+
+	return c.JSON(http.StatusOK, resp)
 }
 
 // CreateUserAccount implements UserHandlerInterface.
@@ -73,8 +177,6 @@ func (u *UserHandler) CreateUserAccount(c echo.Context) error {
 	return c.JSON(http.StatusCreated, resp)
 }
 
-var err error
-
 func (u *UserHandler) SignIn(c echo.Context) error {
 	var (
 		req        = request.SignInRequest{}
@@ -113,7 +215,7 @@ func (u *UserHandler) SignIn(c echo.Context) error {
 			resp.Data = nil
 			return c.JSON(http.StatusNotFound, resp)
 		}
-		log.Errorf("[UserHandler-3] SignIn: %v", err)
+		log.Errorf("[UserHandler-4] SignIn: %v", err)
 		resp.Message = err.Error()
 		resp.Data = nil
 		return c.JSON(http.StatusUnprocessableEntity, resp)
@@ -141,6 +243,8 @@ func NewUserHandler(e *echo.Echo, UserService service.UserServiceInterface, cfg 
 
 	e.POST("/signin", userHandler.SignIn)
 	e.POST("/signup", userHandler.CreateUserAccount)
+	e.POST("/forgot-password", userHandler.ForgotPassword)
+	e.GET("/verify-account", userHandler.VerifyAccount)
 
 	mid := adapter.NewMiddlewareAdapter(cfg)
 	adminGroup := e.Group("/admin", mid.CheckToken())

@@ -8,6 +8,8 @@ type App struct {
 
 	JwtSecretKey string `json:"jwt_secrect_key"`
 	JwtIssuer    string `json:"jwt_issuer"`
+
+	UrlForgotPassword string `json:"url_forgot_password"`
 }
 
 type PsqlDB struct {
@@ -47,6 +49,8 @@ func NewConfig() *Config {
 
 			JwtSecretKey: viper.GetString("JWT_SECRET_KEY"),
 			JwtIssuer:    viper.GetString("JWT_ISSUER"),
+
+			UrlForgotPassword: viper.GetString("URL_FORGOT_PASSWORD"),
 		},
 		Psql: PsqlDB{
 			Host:      viper.GetString("DATABASE_HOST"),
