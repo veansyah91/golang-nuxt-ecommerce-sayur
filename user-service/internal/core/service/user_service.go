@@ -20,6 +20,7 @@ type UserServiceInterface interface {
 	CreateUserAccount(ctx context.Context, req entity.UserEntity) error
 	ForgotPassword(ctx context.Context, req entity.UserEntity) error
 	VerifyToken(ctx context.Context, token string) (*entity.UserEntity, error)
+	UpdatePassword(ctx context.Context, req entity.UserEntity) error
 }
 
 type UserService struct {
@@ -27,6 +28,39 @@ type UserService struct {
 	cfg        *config.Config
 	jwtService JwtServiceInterface
 	repoToken  repository.VerificationTokenRepositoryInterface
+}
+
+// UpdatePassword implements UserServiceInterface.
+func (u *UserService) UpdatePassword(ctx context.Context, req entity.UserEntity) error {
+	token, err := u.repoToken.GetDataByToken(ctx, req.Token)
+
+	if err != nil {
+		log.Errorf("[UserService-1] UpdatePassword: %v", err)
+		return err
+	}
+
+	if token.TokenType != "reset_password" {
+		err = errors.New("401")
+		log.Errorf("[UserService-2] UpdatePassword: %v", err)
+		return err
+	}
+
+	password, err := conv.HashPassword(req.Password)
+	if err != nil {
+		log.Errorf("[UserService-3] UpdatePassword: %v", err)
+		return err
+	}
+
+	req.Password = password
+	req.ID = token.UserID
+
+	err = u.repo.UpdatePasswordById(ctx, req)
+	if err != nil {
+		log.Errorf("[UserService-4] UpdatePassword: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // VerifyToken implements UserServiceInterface.
@@ -60,7 +94,7 @@ func (u *UserService) VerifyToken(ctx context.Context, token string) (*entity.Us
 	}
 
 	redisConn := config.NewRedisClient()
-	err = redisConn.HSet(ctx, token, sessionData).Err()
+	err = redisConn.Set(ctx, token, sessionData, time.Hour*23).Err()
 	if err != nil {
 		log.Errorf("[UserService-4] VerifyToken: %v", err)
 		return nil, err
@@ -83,7 +117,7 @@ func (u *UserService) ForgotPassword(ctx context.Context, req entity.UserEntity)
 	reqEntity := entity.VerificationUserEntity{
 		UserID:    user.ID,
 		Token:     token,
-		TokenType: "forgot_password",
+		TokenType: "reset_password",
 	}
 
 	err = u.repoToken.CreateVerificationToken(ctx, reqEntity)
@@ -166,7 +200,7 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 	}
 
 	redisConn := config.NewRedisClient()
-	err = redisConn.HSet(ctx, token, sessionData).Err()
+	err = redisConn.Set(ctx, token, sessionData, time.Hour*23).Err()
 	if err != nil {
 		log.Errorf("[UserService-4] SignIn: %v", err)
 		return nil, "", err

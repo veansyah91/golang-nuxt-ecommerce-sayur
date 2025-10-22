@@ -15,3 +15,9 @@ type SignUpRequest struct {
 type ForgotPasswordRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+type UpdatePasswordRequest struct {
+	CurrentPassword      string `json:"current_password,omitempty"`
+	NewPassword          string `json:"new_password" validate:"required"`
+	PasswordConfirmation string `json:"password_confirmation" validate:"required"`
+}

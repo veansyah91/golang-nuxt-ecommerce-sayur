@@ -4,7 +4,7 @@ import "time"
 
 type VerificationUser struct {
 	ID        int64 `grom:"primaryKey"`
-	UserID    int64 `grom:"index"`
+	UserID    int64 `grom:"user_id,index"`
 	Token     string
 	TokenType string
 	ExpiresAt time.Time
