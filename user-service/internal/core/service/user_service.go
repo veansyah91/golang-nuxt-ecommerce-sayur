@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -199,8 +200,14 @@ func (u *UserService) SignIn(ctx context.Context, req entity.UserEntity) (*entit
 		"token":      token,
 	}
 
+	jsonData, err := json.Marshal(sessionData)
+	if err != nil {
+		fmt.Println("Error encoding JSON:", err)
+		return nil, "", err
+	}
+
 	redisConn := config.NewRedisClient()
-	err = redisConn.Set(ctx, token, sessionData, time.Hour*23).Err()
+	err = redisConn.Set(ctx, token, jsonData, time.Hour*23).Err()
 	if err != nil {
 		log.Errorf("[UserService-4] SignIn: %v", err)
 		return nil, "", err

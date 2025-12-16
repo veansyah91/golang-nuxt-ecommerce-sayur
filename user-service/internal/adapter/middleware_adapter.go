@@ -5,6 +5,7 @@ import (
 	"strings"
 	"user-service/config"
 	"user-service/internal/adapter/handler/response"
+	"user-service/internal/core/service"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
@@ -15,7 +16,8 @@ type MiddlewareAdapterInterface interface {
 }
 
 type MiddlewareAdapter struct {
-	cfg *config.Config
+	cfg        *config.Config
+	jwtService service.JwtServiceInterface
 }
 
 // CheckToken implements MiddlewareAdapterInterface.
@@ -34,18 +36,26 @@ func (m *MiddlewareAdapter) CheckToken() echo.MiddlewareFunc {
 			}
 
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-			getSession, err := redisConn.HGetAll(c.Request().Context(), tokenString).Result()
 
+			_, err := m.jwtService.ValidateToken(tokenString)
 			if err != nil {
-				log.Errorf("[MiddlewareAdapter-2] Redis error: %v", err)
-				respErr.Message = "failed to verify session"
+				log.Errorf("[MiddlewareAdapter-2] CheckToken: %s", err.Error())
+				respErr.Message = err.Error()
+				respErr.Data = nil
+				return c.JSON(http.StatusUnauthorized, respErr)
+			}
+
+			getSession, err := redisConn.Get(c.Request().Context(), tokenString).Result()
+			if err != nil || len(getSession) == 0 {
+				log.Errorf("[MiddlewareAdapter-3] CheckToken: %s", err.Error())
+				respErr.Message = err.Error()
 				respErr.Data = nil
 				return c.JSON(http.StatusUnauthorized, respErr)
 			}
 
 			if len(getSession) == 0 {
 				log.Info(getSession)
-				log.Warnf("[MiddlewareAdapter-3] session not found or invalid token")
+				log.Warnf("[MiddlewareAdapter-4] session not found or invalid token")
 				respErr.Message = "session not found or invalid token"
 				respErr.Data = nil
 				return c.JSON(http.StatusUnauthorized, respErr)
